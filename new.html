@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <!-- <script src="https://www.youtube.com/iframe_api"></script> -->
+    <script src="jquery-3.1.1.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+</head>
+<body>
+ 
+ <!--<button id="x" type="submit">Search</button>-->
+ <form method="post" action = "" class="form-inline" id = "x" enctype = "application/json">
+    <div class="form-group">
+        <label class="sr-only" for="videoName">Enter song name:</label>
+        <div class="input-group">
+            <input type="text" class="form-control" id="videoName" placeholder="Enter" name = "name">
+        </div>
+    </div>
+    <button type="submit" class="btn btn-primary" id = "other">Play</button>
+</form>
+<div id="target"></div> 
+<div id="player" style="display: none"></div>
+
+ <script>
+    var id;
+    $('#x').submit(function(event) {
+        event.preventDefault();
+        var searchQuery = document.getElementById('videoName').value;
+        $.get("/search/"+searchQuery, function(data){
+            $('#target').text(data);
+            console.log("got" + data);
+            id = data;
+            var tag = document.createElement('script');
+            tag.src = "https://www.youtube.com/iframe_api";
+            var firstScriptTag = document.getElementsByTagName('script')[0];
+            firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+            player.loadVideoById(id);
+        });
+    });
+
+      var player1;
+      function onYouTubeIframeAPIReady() {
+        player1 = new YT.Player('player', {
+          height: '390',
+          width: '640',
+          videoId: id,
+          events: {
+            'onReady': onPlayerReady,
+          }
+        });
+
+ }
+
+      // 4. The API will call this function when the video player is ready.
+      function onPlayerReady(event) {
+        event.target.playVideo();
+      }
+
+    
+    
+
+</script>
+</body>
+</html>
