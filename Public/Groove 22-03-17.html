@@ -1,18 +1,13 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <!--<script type="text/javascript" language="javascript">
-        function onYouTubePlayerReady(playerid) {
-        /*ytp = document.getElementById('ytplayer');
-        ytp.mute();*/
-        alert("hello");
-        };
-    </script>-->
+
+    <script src="http://localhost:3000/socket.io/socket.io.js"></script>
     <script src="jquery-3.1.1.min.js"></script>
     <link rel="stylesheet" type="text/css" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
     <link rel="stylesheet" type="text/css" href="new1.css">
     <script src="https://www.gstatic.com/firebasejs/3.6.9/firebase.js"></script>
-    <script src="https://cdn.firebase.com/js/client/2.4.2/firebase.js"></script>
+ <script src="https://cdn.firebase.com/js/client/2.4.2/firebase.js"></script>
 </head>
 <body>
     <form method="post" action = "" class="form-inline" id = "x" enctype = "application/json">
@@ -24,16 +19,22 @@
         </div>
         <button type="submit" class="btn btn-primary" id = "other">Play</button>
     </form>
-    <div id="target" ></div> 
-    <iframe id="player" type="text/html" width="640" height="390" frameborder="0"></iframe>
+    <div id="target"></div> 
+    <iframe id="player" type="text/html" width="640" height="390" frameborder="0" allowscriptaccess="always"></iframe>
     <button id = "btn" type="button" class="btn btn-default" onclick = "addToPlaylist()">
         <span class="glyphicon glyphicon-plus"></span>
     </button>
+    <a id="stop" href="#"><strong>Stop The Video</strong></a>
+    <button id = "btn2" type="button" class="btn btn-default" onclick = "addToCommonPlaylist()">
+        <span class="glyphicon glyphicon-plus"></span>
+    </button>
     <div id = "list" class = "playlist">
+    <div id = "list2" class = "commonPlaylist">
     </div>
     
 
     <script>
+        var socket = io.connect("http://localhost:3000/");
         sessionStorage.setItem("flag1", 0);
         var user;
         var t;
@@ -61,16 +62,36 @@
                 $('#target').text(data);
                 user = data;
                 userDatabase();
-            });
+            })
         }
+
+        $('#stop').on('click', function() {
+             //$('#popup-youtube-player').stopVideo();
+            var frame = document.getElementById("player");
+            frame.contentWindow.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*');
+            socket.emit('pause');
+        });
+
+        socket.on('pauseAll', function() {
+            console.log("in pauseall");
+            var frame = document.getElementById("player");
+            frame.contentWindow.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*');
+        });
+
+        socket.on('y', function(data) {
+            console.log(data+"xxxxxxxxxx");
+             $.get("/search/" + data.trim(), function(data) {
+                document.getElementById('player').src = "http://www.youtube.com/embed/" + data + "?autoplay=1&enablejsapi=1&version=3&playerapiid=ytplayer";
+            });
+        })
+
         $('#x').submit(function(event) {
             event.preventDefault();
             var searchQuery = document.getElementById('videoName').value;
             $.get("/search/"+searchQuery, function(data){
-                //alert("hello");
                 $('#target').text(data);
                 console.log("got" + data);
-                document.getElementById('player').src = "http://www.youtube.com/embed/" + data + "?autoplay=1";
+                document.getElementById('player').src = "http://www.youtube.com/embed/" + data + "?autoplay=1&enablejsapi=1&version=3&playerapiid=ytplayer";
                 document.getElementById('btn').style.display = 'inline';
                 $.getJSON('https://noembed.com/embed?url=http://www.youtube.com/watch?v='+data,function(data,status,xhr){
                     //console.log(data.title);
@@ -81,11 +102,10 @@
 
         function userDatabase() {
             //ref2.push({Name : user});
-            ref2.once('value', findUser, errData);
+            ref2.on('value', findUser, errData);
         }
 
         function findUser(data) {
-            console.log("in findUSerrrr");
             var flag = 0;
             var d = data.val();
             var keys = Object.keys(d);
@@ -106,11 +126,14 @@
 
         function addToPlaylist() {
             //$("#list").append('<button type="button" id="' + song_title + '" class = "btn btn-primary btn-block" onclick="play_playlist_song(event)">' +song_title+ '</button><br />');
-            ref3.push({title: song_title});
+            ref3.push({title: song_title, flag : 0});
             ref3.on('value', fun1, errData);
 
         }    
 
+        function addToCommonPlaylist() {
+            $("#list2").append('<button type="button" id="' + song_title + '" class = "btn btn-primary btn-block" onclick="play_common_playlist_song(event)">' +song_title+ '</button><br />');
+        }
 
         function fun1(data) {
             console.log("in fun1");
@@ -127,7 +150,7 @@
                 }
             }
             if(flag == 0) {
-                $("#list").append('<button type="button" id="' + song_title + '" class = "btn btn-primary btn-block" onclick="play_playlist_song(event) draggable="true"">' +song_title+ '</button><br />');
+                $("#list").append('<button type="button" id="' + song_title + '" class = "btn btn-primary btn-block" onclick="play_playlist_song(event)">' +song_title+ '</button><br />');
 
             }
         }
@@ -135,8 +158,13 @@
         function play_playlist_song(event) {
             console.log(event.target.id);
             $.get("/search/" + event.target.id.trim(), function(data) {
-                document.getElementById('player').src = "http://www.youtube.com/embed/" + data + "?autoplay=1";
+                document.getElementById('player').src = "http://www.youtube.com/embed/" + data + "?autoplay=1&enablejsapi=1&version=3&playerapiid=ytplayer";
             });
+
+        }
+
+        function play_common_playlist_song(event) {
+            socket.emit('x', {title : event.target.id});
         }
 
         function displayData(data) {
@@ -148,7 +176,7 @@
                 var k = keys[i];
                 var title = d[k].title;
                 if(sessionStorage.flag1 == 0) {
-                    $("#list").append('<button type="button" id="' + title + '" class = "btn btn-primary btn-block" onclick="play_playlist_song(event) draggable="true"">' +title+ '</button><br />');
+                    $("#list").append('<button type="button" id="' + title + '" class = "btn btn-primary btn-block" onclick="play_playlist_song(event)">' +title+ '</button><br />');
                 } 
             }
             sessionStorage.flag1 = 1;
@@ -156,8 +184,7 @@
 
         function errData(err){
             console.log(err);
-        }      
-
+        }            
     </script>
 </body>
 </html>
